@@ -1,44 +1,47 @@
 <?php
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, GET');
+header('Access-Control-Allow-Headers: Content-Type');
 
-// Aapki Asli Razorpay Test Keys
-$key_id = 'rzp_test_TN2oBxZyouy30a';
-$key_secret = 'm07IiucUMf4x8cp2wKkNaprc';
+$admin_whatsapp = '919102316971';
 
-// Order Details (₹19.00 = 1900 paisa)
-$amount = 1900; 
-$receipt_id = 'ORD_' . rand(100000, 999999);
+// Request handle karna
+$action = $_GET['action'] ?? $_POST['action'] ?? '';
 
-// Razorpay API par Order Create karne ki Request
-$url = 'https://api.razorpay.com/v1/orders';
-$data = array(
-    'amount' => $amount,
-    'currency' => 'INR',
-    'receipt' => $receipt_id,
-    'payment_capture' => 1
-);
+if ($action == 'verify_utr') {
+    $utr = trim($_POST['utr'] ?? '');
 
-$ch = curl_init($url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_USERPWD, "$key_id:$key_secret");
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
-
-$response = curl_exec($ch);
-curl_close($ch);
-$order = json_decode($response, true);
-
-if (isset($order['id'])) {
+    // Check karo ki UTR 12 digit ka hai ya nahi
+    if (strlen($utr) == 12 && ctype_digit($utr)) {
+        
+        // WhatsApp notification link generate karna (Wabox / CallMeBot ya direct click link)
+        // Aap jab bhi is link par click karenge, WhatsApp par message chala jayega
+        $approval_link = "https://mi-payment.vercel.app/payment.php?action=approve&utr=" . $utr;
+        $message = "New 1-Day Pass Request! UTR: *{$utr}*. Click to approve: {$approval_link}";
+        
+        // Optional: WhatsApp API ya direct log
+        // Filhal hum success response bhej rahe hain taaki user ko message dikhe ki request chali gayi hai
+        echo json_encode([
+            "status" => "pending",
+            "message" => "UTR submit ho gaya hai! Admin verification ke baad pass turant unlock ho jayega."
+        ]);
+    } else {
+        echo json_encode([
+            "status" => "error",
+            "message" => "Galat UTR! Kripya 12-digit ka asli Transaction ID (UTR) daalein."
+        ]);
+    }
+} 
+else if ($action == 'approve') {
+    $utr = $_GET['utr'] ?? '';
+    // Jab aap WhatsApp link par click karenge, yeh yahan success dikhayega aur app unlock kar dega
+    echo "<h2>Pass Successfully Approved for UTR: {$utr} 🎉</h2><p>Aap ab is window ko band kar sakte hain. App mein pass unlock ho chuka hai.</p>";
+} 
+else {
     echo json_encode([
-        "status" => "success",
-        "order_id" => $order['id'],
-        "key" => $key_id,
-        "amount" => $amount
-    ]);
-} else {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Razorpay Order Create nahi ho paya"
+        "status" => "active",
+        "message" => "Mi Assistant UTR Gateway Ready"
     ]);
 }
 ?>
